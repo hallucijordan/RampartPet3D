@@ -1,0 +1,93 @@
+/* HUD at her feet (hud.js). Block shape variables are set by geom.js; the two-layer drawing is .ui-plate in base.css
+ * The root element is a 0×0 anchor pinned at the "right edge of the first row"; both rows grow right to left (more digits extend the block left, the slanted right edge stays put) */
+.ui-hud {
+  z-index: var(--ui-z-hud);
+  width: 0;
+  height: 0;
+  will-change: transform, opacity;
+  /* colors: numbers brightest, labels and icons one step lower (feedback: HUD text should not be too white or bright) */
+  --hud-num: var(--ui-fg-hi);
+  --hud-lab: var(--ui-fg);
+  --hud-ic: #cfd3d7;
+}
+.ui-hud .rows { position: absolute; left: 0; top: 0; width: 0; height: 0; will-change: opacity; }
+.ui-hud .hr { position: absolute; right: 0; top: 0; display: flex; gap: 3px; }   /* gap = LAYOUT.hudGap */
+.ui-hud .r2 { top: 23px; }                                                        /* row height + row gap */
+
+/* ---------- blocks ----------
+ * height 20, horizontal padding 12 (integers: content lands on whole pixels). The parallelogram is point symmetric, equal side padding = content centered in the block */
+.ui-hud .pl {
+  flex: none;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  color: var(--hud-lab);
+  text-shadow: var(--ui-tshadow);
+}
+.ui-hud .pl > .ui-ic { --c: var(--hud-ic); filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .3)); }
+/* the ink of the skull and squad icons narrows at the bottom (chin, feet), so centered in the box the ink looks about 0.5 px high: the mask is shifted down 0.35 px in the box (masks sample at subpixels, not rounded to 1 px;
+   swept 0–1 px, 0.3–0.4 is most accurate). Measured: top / bottom space around the ink of all four icons differs by ≤ 0.35 px, all in the same direction */
+.ui-hud .i-kills, .ui-hud .i-squad { -webkit-mask-position: 50% calc(50% + .35px); mask-position: 50% calc(50% + .35px); }
+
+/* fixed-width box around numbers / labels (width computed by hud.js from the character count, whole pixels): the box width transitions when the digit count changes (enter easing, most of it opens in the first 40 ms), numbers right aligned
+   the left edge is not clipped: clipped, during the first 100 ms of 9 -> 10 the "1" shows only as an edge and reads as "0"; unclipped, the new number fades in as a whole (put in hud.js), so no frame misreads */
+.ui-hud .nw {
+  flex: none;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  transition: width 180ms var(--ui-ease-out);
+}
+.ui-hud.inst .nw { transition: none; }
+.ui-hud .nw > .ui-tx { flex: none; }
+/* numbers: as in the in-match original, narrow, thin, cap height about 0.4 of the plate (feedback: the old ones were too big and bold). Width 100% (globally 115%), weight 500, slightly tighter spacing
+   the letter spacing after the last character takes no room: the ink sits flush with the box's right edge */
+.ui-hud .ui-num { --ui-ls-num: .4px; color: var(--hud-num); font-weight: 500; font-stretch: 100%; margin-right: calc(-1 * var(--ui-ls-num)); }
+/* company time, BOOM!, head pats: proportional digits (hud.js sizes the box by actual glyph width); the key count stays tabular so the block width does not jitter as every key changes it */
+.ui-hud .pn, .ui-hud .nw:not([data-k="keys"]) > .ui-num { font-variant-numeric: proportional-nums; }
+
+/* typing block side padding balanced by ink: the damage icon (23 px box) has about 2 px of transparency on the left, pulled in by 2; the last tabular digit (2, 3…) has ink close to the right edge, so the block gets 1 extra on the right.
+   measured per row, the nearest ink-to-slant distances of the three blocks differ by under 0.6 px between left and right */
+.ui-hud .i-keys { margin-left: -2px; }
+.ui-hud .b-k { padding-right: 13px; }
+
+/* spacing: icon -> number 5 */
+.ui-hud .ui-ic + .nw { margin-left: 5px; }
+
+/* slanted divider: parallel to the block's slanted sides (--hud-skew computed by hud.js from the slant), height 14 (3 above and below, 2 px taller than the digits), a 1.5 px line in a 2 px wide box (integer box width, so the following icon does not land on half a pixel) */
+.ui-hud .sep { flex: none; position: relative; width: 2px; height: 14px; margin: 0 6px; }
+.ui-hud .sep::before {
+  content: "";
+  position: absolute;
+  inset: 0 .25px;
+  background: var(--ui-hud-stroke);     /* same token as the block stroke (in the original, the divider and the outer frame are the same line) */
+  transform: skewX(var(--hud-skew));
+}
+
+/* ---------- menu button ----------
+ * light plate + dark three bars (drawn in CSS: three 2 px bars on whole pixels, sharper than a scaled-down icon); while the panel is open the stroke turns Rampart orange and thickens to 2 px (hud.js swaps the geometry) */
+.ui-hud .menu {
+  --plate-fill: var(--ui-plate);
+  --plate-stroke: var(--ui-plate);
+  width: 38px;
+  padding: 0;
+  justify-content: center;
+  cursor: pointer;
+  text-shadow: none;
+  /* a light plate blurs into a light desktop: a faint 1 px shadow lifts the outline (almost invisible on dark desktops) */
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .3));
+}
+.ui-hud .menu::before { transition: background-color var(--ui-t) var(--ui-ease-std); }
+.ui-hud .menu:hover { --plate-fill: #f3f4f5; --plate-stroke: #f3f4f5; }
+.ui-hud .menu:active { --plate-fill: #d8dbde; --plate-stroke: #d8dbde; }
+.ui-hud .menu.open, .ui-hud .menu.open:hover { --plate-stroke: var(--ui-rampart); }
+.ui-hud .burger {
+  flex: none;
+  width: 12px;
+  height: 10px;
+  background: repeating-linear-gradient(to bottom, #23272c 0 2px, transparent 2px 4px);
+}
+
+.ui-hud .probe { position: absolute; left: 0; top: 0; visibility: hidden; }

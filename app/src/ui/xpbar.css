@@ -1,0 +1,188 @@
+/* XP bar above her head (xpbar.js): --rank = current (displayed) rank color, set by js
+ * vertical rhythm (54 high, badge 42 with 6 above and below): right column = rank name 9 (cap height) · 7 · progress bar 4 · 7 · number 7 = 34, 10 above and below (an odd number would land on half pixels)
+ * text in one row aligns on the baseline; each text box is trimmed to cap height (text-box), so spacing is measured ink to ink */
+.ui-xp {
+  --rank: #d0b583;
+  --rank-hi: #d9c49c;       /* rank name: rank color lightened to a shared lightness (js sets it per rank, see rankText in rankup.js: dark ranks are lifted more) */
+  --rank-lite: color-mix(in oklab, var(--rank) 52%, #fff);     /* bright end of the progress bar, glow */
+  --rank-glow: color-mix(in srgb, var(--rank) 55%, transparent);
+  --xp-unit: color-mix(in srgb, var(--ui-fg-3) 55%, var(--ui-fg-2));   /* LV / XP units: one step darker than the numbers, still readable on light desktops (contrast ≥ 3) */
+  z-index: var(--ui-z-xp);
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 240px;
+  height: 54px;
+  padding: 0 22px 0 8px;
+  will-change: transform, opacity;
+}
+
+/* ---------- backing: carbon texture, faded left and right, 3 px feather top and bottom, no border (a layer of light floating above her head, not a strip of tape stuck on) ----------
+   the right end extends 12 px past the bar: the fade starts only at the text's right edge (218), so LV / XP are not in the fade; solid part 70% (60% in v5):
+   on dark desktops the two look almost the same; on light desktops only this keeps the rank name / LV / XP readable (the overlay cannot see the desktop, backdrop-filter does not work, so it relies on the backing itself)
+   tint: a very faint glow of rank color behind the badge (joins the badge with the backing), and a very faint rank-color hairline on the top edge (middle only, fading with the backing) */
+.ui-xp > .skin {
+  right: -12px;
+  opacity: .7;
+  -webkit-mask: linear-gradient(90deg, transparent, #000 36px, #000 calc(100% - 34px), transparent), linear-gradient(180deg, transparent, #000 3px, #000 calc(100% - 3px), transparent);
+  -webkit-mask-composite: source-in;
+  mask: linear-gradient(90deg, transparent, #000 36px, #000 calc(100% - 34px), transparent), linear-gradient(180deg, transparent, #000 3px, #000 calc(100% - 3px), transparent);
+  mask-composite: intersect;
+}
+.ui-xp > .tint {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent 12%, color-mix(in srgb, var(--rank) 20%, transparent) 36%, color-mix(in srgb, var(--rank) 20%, transparent) 60%, transparent 86%) 0 1px / 100% 1px no-repeat,
+    radial-gradient(30px 27px at 29px 50%, color-mix(in srgb, var(--rank) 24%, transparent), transparent);
+}
+
+/* ---------- badge: image scaled at its original aspect (the ring is the same size for every rank), element box 42 × 42 ---------- */
+.ui-xp .bd {
+  position: relative;
+  flex: none;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+}
+.ui-xp .bd > * { grid-area: 1 / 1; }
+/* badge image and plate text bounce and brighten together (js sets transform / filter on .bi)
+   first a faint dark shadow ring lifts the outline (Diamond blue and Master purple do not melt into blue desktops), then the rank-color glow on top */
+.ui-xp .bd .bi {
+  position: relative;
+  filter: drop-shadow(0 0 3px rgba(0, 0, 0, .45)) drop-shadow(0 0 4px color-mix(in srgb, var(--rank) 38%, transparent));
+}
+.ui-xp .bd img { display: block; width: 100%; height: 100%; max-width: none; }
+/* plate text: same as the big rank up badge (Saira 650, --ui-fg-hi), cap height 6 (plate about 10 high, 2 above and below); Master / Apex Predator show the level, flatter plate, cap height 5 */
+.ui-xp .bd .pn {
+  position: absolute;
+  left: 50%;
+  translate: -50% -50%;
+  font-size: 8.72px;
+  font-weight: var(--ui-w-title);
+  letter-spacing: .5px;
+  text-indent: .5px;
+  line-height: 1;
+  white-space: nowrap;
+  text-box: trim-both cap alphabetic;
+  color: var(--ui-fg-hi);
+}
+.ui-xp .bd .pn.num { font-size: 7.27px; letter-spacing: .3px; text-indent: .3px; }
+.ui-xp .bd .pn:empty { display: none; }
+/* light sweep: the badge image as mask, a slanted white band sweeps across (short rank up) */
+.ui-xp .bd .sh {
+  opacity: 0;
+  -webkit-mask: var(--src) center / 100% 100% no-repeat;
+  mask: var(--src) center / 100% 100% no-repeat;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, .8) 50%, transparent 60%) 95% 0 / 300% 100% no-repeat;
+  mix-blend-mode: screen;
+}
+
+/* ---------- right column ---------- */
+.ui-xp .col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ui-xp .top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.ui-xp .name, .ui-xp .lv, .ui-xp .num, .ui-xp .pop {
+  display: block;
+  line-height: 1;
+  white-space: nowrap;
+  text-box: trim-both cap alphabetic;
+}
+/* rank name: Latin 13.09 (cap height 9); CJK by "font size = cap height / 0.768" = 11.72, ink extends equally above and below, on the same baseline as the Roman numeral */
+.ui-xp .name {
+  font-size: var(--ui-fs-md);
+  font-weight: var(--ui-w-strong);
+  letter-spacing: var(--ui-ls-caps);
+  color: var(--rank-hi);
+  text-shadow: var(--ui-tshadow);
+}
+.ui-xp .name .tn.cjk { font-size: 11.72px; letter-spacing: var(--ui-ls-cjk); }
+.ui-xp .name .rn { margin-left: .3em; }
+.ui-xp .name .rn:empty { display: none; }
+/* LV 23: label one step smaller and darker, number bright (cap height 7 / 8, shared baseline) */
+.ui-xp .lv { font-size: var(--ui-fs-sm); font-weight: var(--ui-w-strong); letter-spacing: var(--ui-ls-num); color: var(--ui-fg); text-shadow: var(--ui-tshadow); }
+.ui-xp .lv i { font-style: normal; font-size: var(--ui-fs-xs); font-weight: var(--ui-w-strong); letter-spacing: 1px; color: var(--xp-unit); margin-right: 4px; }
+.ui-xp .lv b { font-weight: inherit; }
+
+/* ---------- progress bar: 4 high, both ends chamfered --xp-sl = 4 × 9 / 20 = 1.8 (same angle as the HUD parallelograms, hudSlant / hudRow in util.js) ---------- */
+.ui-xp .bar { --xp-sl: 1.8px; position: relative; height: 4px; margin: 7px 0; }
+.ui-xp .trk {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  clip-path: polygon(var(--xp-sl) 0, 100% 0, calc(100% - var(--xp-sl)) 100%, 0 100%);
+  background: rgba(255, 255, 255, .12);
+}
+.ui-xp .trk > * { position: absolute; inset: 0; will-change: transform; }
+/* preview: the new progress arrives first, the solid bar catches up */
+.ui-xp .gh {
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--xp-sl)) 100%, 0 100%);
+  background: color-mix(in srgb, var(--rank-lite) 36%, transparent);
+}
+/* solid bar: the outer translate sets how much shows (leading edge chamfered), the inner one translates back, the gradient is anchored to the track (rank color -> light) */
+.ui-xp .fl { overflow: hidden; clip-path: polygon(0 0, 100% 0, calc(100% - var(--xp-sl)) 100%, 0 100%); }
+.ui-xp .fl b {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+  background:
+    linear-gradient(rgba(255, 255, 255, .24), rgba(255, 255, 255, .24)) 0 0 / 100% 1px no-repeat,
+    linear-gradient(90deg, color-mix(in oklab, var(--rank) 86%, #000), var(--rank) 45%, var(--rank-lite));
+}
+/* leading edge highlight */
+.ui-xp .fl::after {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0; right: 0;
+  width: 4px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .85));
+}
+.ui-xp .fs { background: #fff; opacity: 0; }
+/* leading edge glow, white flash soft light: outside the bar, screen */
+.ui-xp .hd {
+  position: absolute;
+  left: -6.9px;              /* glow center = middle of the leading slanted edge (-width / 2 - chamfer / 2) */
+  top: -3px;
+  width: 12px;
+  height: 10px;
+  opacity: 0;
+  background: radial-gradient(closest-side, rgba(255, 255, 255, .8), color-mix(in srgb, var(--rank-lite) 55%, transparent) 45%, transparent);
+  mix-blend-mode: screen;
+  will-change: transform, opacity;
+}
+.ui-xp .fg {
+  position: absolute;
+  inset: -6px -8px;
+  opacity: 0;
+  background: radial-gradient(closest-side, rgba(255, 255, 255, .5), color-mix(in srgb, var(--rank-lite) 30%, transparent) 55%, transparent);
+  mix-blend-mode: screen;
+}
+
+/* ---------- 3.1k / 5.0k XP: current bright, total one step darker, unit another step darker ---------- */
+.ui-xp .num {
+  align-self: flex-end;
+  font-size: var(--ui-fs-xs);
+  font-weight: var(--ui-w-strong);
+  letter-spacing: var(--ui-ls-num);
+  color: var(--ui-fg-2);
+  text-shadow: var(--ui-tshadow);
+}
+.ui-xp .num b { font-weight: inherit; color: var(--ui-fg); }
+.ui-xp .num span { margin-left: .32em; }
+.ui-xp .num i { font-style: normal; margin-left: .4em; letter-spacing: 1px; color: var(--xp-unit); }
+
+/* XP gain: "+40 XP" floats up from the top right of the bar */
+.ui-xp .pop {
+  position: absolute;
+  right: 22px;
+  bottom: calc(100% + 2px);
+  opacity: 0;
+  font-size: var(--ui-fs-sm);
+  font-weight: var(--ui-w-num);
+  letter-spacing: var(--ui-ls-caps);
+  color: var(--rank-hi);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .6), 0 0 8px rgba(0, 0, 0, .35);
+}

@@ -1,0 +1,64 @@
+{
+  "name": "rampart-pet",
+  "productName": "RampartPet3D",
+  "version": "2.5.1",
+  "private": true,
+  "description": "Rampart desktop pet (real-time 3D)",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "start": "electron .",
+    "start:dev": "set PET_DEV_URL=http://localhost:5173&& electron .",
+    "start:spike": "electron . --spike",
+    "pack:dir": "vite build && electron-builder --dir",
+    "pack": "vite build && electron-builder --win portable",
+    "pack:nobuild": "electron-builder --win portable",
+    "release": "vite build && node tools/prune_dist.mjs && electron-builder --dir",
+    "install-release": "node tools/install_release.mjs",
+    "capture": "electron tools/capture.js"
+  },
+  "dependencies": {
+    "koffi": "^3.3.1",
+    "uiohook-napi": "^1.5.5"
+  },
+  "devDependencies": {
+    "@gltf-transform/cli": "^4.5.0",
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3",
+    "meshoptimizer": "^1.3.0",
+    "three": "^0.186.1",
+    "vite": "^8.3.1"
+  },
+  "build": {
+    "appId": "dev.rampart.pet",
+    "productName": "RampartPet3D",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "package.json",
+      "electron/**/*",
+      "!electron/*.md",
+      "!electron/*.ps1",
+      "dist/**/*"
+    ],
+    "asarUnpack": [
+      "node_modules/uiohook-napi/**/*",
+      "node_modules/koffi/**/*",
+      "node_modules/@koromix/**/*"
+    ],
+    "electronDist": "node_modules/electron/dist",
+    "electronLanguages": [
+      "en-US"
+    ],
+    "npmRebuild": false,
+    "win": {
+      "target": "portable",
+      "icon": "electron/icon.ico"
+    },
+    "portable": {
+      "artifactName": "RampartPet3D.exe"
+    }
+  }
+}

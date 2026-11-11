@@ -1,0 +1,192 @@
+/* Rank up animation (rankup.js)
+ * the root element's origin = composition center (full version: badge center; short version: XP bar badge center), js translates it there every frame
+ * colors: --rank rank color, --rank-hi lightened a little (text), --rank-lite lightened halfway (base color for light effects). All set by js for the new rank
+ * all children are transparent by default; only those animated by the current timeline appear; after the timeline the whole layer is display: none */
+.ui-rk {
+  --rank: #d0b583;
+  --rank-hi: #d9c49c;
+  --rank-lite: #e7dac1;
+  z-index: var(--ui-z-rankup);
+  width: 0;
+  height: 0;
+  display: none;
+  pointer-events: none;
+}
+.ui-rk.on { display: block; }
+/* the full version's banner and the short version's small banner never show together (backings not animated by the current timeline are opaque by default and would show if not hidden) */
+.ui-rk.short .banner, .ui-rk:not(.short) .tag { display: none; }
+.ui-rk > *, .ui-rk .sparks > * { position: absolute; left: 0; top: 0; opacity: 0; }
+.ui-rk .sparks { opacity: 1; }
+
+/* ---------- light effects: white images as masks, base color = lightened rank color, screen blend ----------
+   size --w / --h, centered with negative margins (translate / scale / rotate are left to the animation) */
+.ui-rk .fx {
+  width: var(--w);
+  height: var(--w);
+  margin: calc(var(--w) / -2) 0 0 calc(var(--w) / -2);
+  background: var(--rank-lite);
+  -webkit-mask: var(--m) center / 100% 100% no-repeat;
+  mask: var(--m) center / 100% 100% no-repeat;
+  mix-blend-mode: screen;
+  will-change: transform, opacity;
+}
+/* glow: no image, a radial gradient is cleaner (white core -> rank color -> transparent) */
+.ui-rk .glow {
+  --w: 380px;
+  -webkit-mask: none; mask: none;
+  background: radial-gradient(closest-side, rgba(255, 255, 255, .5), var(--rank-lite) 20%, color-mix(in srgb, var(--rank) 42%, transparent) 50%, transparent);
+}
+/* light rays: the source image has square edges, so a radial mask feathers the outer edge (the two masks intersect) */
+/* the feather starts at 68%: the ray tips are kept, only the square edges of the image are trimmed */
+.ui-rk .rays::before, .ui-rk .rays2 {
+  -webkit-mask: var(--ui-img-fx-rays) center / 100% 100% no-repeat, radial-gradient(closest-side, #000 68%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask: var(--ui-img-fx-rays) center / 100% 100% no-repeat, radial-gradient(closest-side, #000 68%, transparent 100%);
+  mask-composite: intersect;
+}
+/* the large rays (420) reach farther than the distance from the composition center to the top of her head: the outer layer does not rotate and only carries a downward fading mask (from 40 px below center, down to just over 10% at her hairline about 143 px away),
+   the upper half radiates as usual and the side toward her is trimmed, so no rank-colored light sits on her hairline; the ray image rotates slowly on ::before (rankup.js animates the pseudoElement)
+   the color is the rank color itself (no white mixed in): only then does the screen blend over the desktop read as gold / platinum instead of a gray-white fog */
+.ui-rk .rays {
+  --w: 420px;
+  background: none;
+  -webkit-mask: linear-gradient(180deg, #000 59.5%, transparent 86%);
+  mask: linear-gradient(180deg, #000 59.5%, transparent 86%);
+}
+.ui-rk .rays::before { content: ""; position: absolute; inset: 0; background: var(--rank); }
+.ui-rk .rays0 { mix-blend-mode: normal; }       /* same-shape rays underneath: normal blend, opacity from the timeline (about 35%) */
+.ui-rk .rays2 { --w: 250px; background: color-mix(in srgb, var(--rank-hi) 82%, #fff); }   /* inner ring leans white: cool ranks (Diamond, Platinum) still get some contrast on blue desktops */
+/* dark shade behind the rays: normal blend, same downward fade as the large rays (does not cover her face) */
+.ui-rk .shade {
+  --w: 400px;
+  -webkit-mask: linear-gradient(180deg, #000 59.5%, transparent 86%);
+  mask: linear-gradient(180deg, #000 59.5%, transparent 86%);
+  background: radial-gradient(closest-side, rgba(6, 8, 12, .34), rgba(6, 8, 12, .2) 55%, transparent);
+  mix-blend-mode: normal;
+}
+.ui-rk .conv { --w: 230px; --m: var(--ui-img-fx-ring-white); background: color-mix(in srgb, var(--rank-lite) 40%, #fff); }
+.ui-rk .shock { --w: 240px; --m: var(--ui-img-fx-ring-white); }
+.ui-rk .halo { --w: 196px; --m: var(--ui-img-fx-ring-white); background: color-mix(in srgb, var(--rank-hi) 70%, #fff); }
+.ui-rk .star { --w: 300px; --m: var(--ui-img-fx-starburst); background: color-mix(in srgb, var(--rank-lite) 50%, #fff); }
+.ui-rk .flash { --w: 260px; -webkit-mask: none; mask: none; background: radial-gradient(closest-side, #fff, rgba(255, 255, 255, .55) 30%, transparent); }
+.ui-rk .ping { --w: 64px; --m: var(--ui-img-fx-glow); }
+/* sparks: small dots with a white core */
+.ui-rk .spk {
+  width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, #fff, var(--rank-lite) 45%, transparent);
+  mix-blend-mode: screen;
+}
+
+/* ---------- badge (size and negative margins set by js per rank image) ---------- */
+.ui-rk .emb img { display: block; width: 100%; height: 100%; }
+/* white ring when the old badge rises: follows the badge */
+.ui-rk .old .lring { position: absolute; left: 50%; top: 46%; --w: 118%; --m: var(--ui-img-fx-glow); background: #fff; margin: 0; translate: -50% -50%; width: var(--w); height: auto; aspect-ratio: 1; }
+/* light sweep: the badge image itself as mask, a slanted white band sweeps across (metallic sheen) */
+.ui-rk .new .sh {
+  position: absolute; inset: 0; opacity: 0;
+  -webkit-mask: var(--src) center / 100% 100% no-repeat;
+  mask: var(--src) center / 100% 100% no-repeat;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, .7) 50%, transparent 60%) 95% 0 / 300% 100% no-repeat;
+  mix-blend-mode: screen;
+}
+/* division number on the plate (where the game puts it): cap height equals the box height, so translate -50% centers the ink */
+.ui-rk .new .pn {
+  position: absolute; left: 49.85%; top: 82.6%;
+  translate: -50% -50%;
+  opacity: 0;
+  font-size: var(--ui-fs-xl);
+  font-weight: var(--ui-w-num);
+  letter-spacing: 1px;
+  text-indent: 1px;
+  line-height: 1;
+  text-box: trim-both cap alphabetic;
+  color: var(--ui-fg-hi);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--rank) 80%, transparent), 0 1px 1px rgba(0, 0, 0, .6);
+}
+.ui-rk .new .pn:empty { display: none; }
+.ui-rk .new .pn.num { letter-spacing: .5px; text-indent: .5px; }     /* Master / Apex Predator: the level on a flat plate */
+
+/* ---------- banner: carbon backing, no border, faded at both ends; one very faint rank-color hairline above and below (middle only, 25%) ---------- */
+.ui-rk .banner {
+  width: 360px;
+  height: 60px;
+  margin-left: -180px;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  opacity: 1;
+}
+.ui-rk .bg { position: absolute; inset: 0; z-index: -1; }
+/* backing: faded left and right + 3 px feather top and bottom (same treatment as the XP bar, no hard edges) */
+.ui-rk .bg > .skin {
+  opacity: .82;
+  -webkit-mask: linear-gradient(90deg, transparent, #000 26%, #000 74%, transparent), linear-gradient(180deg, transparent, #000 3px, #000 calc(100% - 3px), transparent);
+  -webkit-mask-composite: source-in;
+  mask: linear-gradient(90deg, transparent, #000 26%, #000 74%, transparent), linear-gradient(180deg, transparent, #000 3px, #000 calc(100% - 3px), transparent);
+  mask-composite: intersect;
+}
+.ui-rk .bg::before, .ui-rk .bg::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 25%, color-mix(in srgb, var(--rank) 25%, transparent) 50%, transparent 75%);
+}
+.ui-rk .bg::before { top: 0; }
+.ui-rk .bg::after { bottom: 0; }
+
+/* text: boxes trimmed to cap height (text-box), CJK paired by "font size = cap height / 0.768", ink extends equally above and below, visual center unchanged */
+.ui-rk .sub, .ui-rk .nm, .ui-rk .tg { display: block; line-height: 1; white-space: nowrap; text-box: trim-both cap alphabetic; }
+.ui-rk .sub {
+  opacity: 0;
+  font-size: var(--ui-fs-md);          /* cap height 9: readable even over the rays */
+  font-weight: var(--ui-w-strong);
+  color: var(--ui-fg-hi);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .55);
+}
+.ui-rk .sub.cjk { font-size: 11.72px; }
+.ui-rk .nm {
+  opacity: 0;
+  font-size: var(--ui-fs-3xl);         /* cap height 18 */
+  font-weight: var(--ui-w-title);
+  /* rank-colored text + a white light sweep (background-clip: text; the glow uses filter, since text-shadow would cover the gradient) */
+  color: transparent;
+  background: linear-gradient(100deg, var(--rank-hi) 43%, #fff 50%, var(--rank-hi) 57%) 95% 0 / 300% 100% no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 0 9px color-mix(in srgb, var(--rank) 55%, transparent)) drop-shadow(0 1px 1px rgba(0, 0, 0, .45));
+  /* background-clip: text only paints inside the border box: the box is trimmed to cap height, which would cut the top of CJK glyphs and the last letter when letter spacing expands, so padding enlarges the canvas and negative margins cancel it */
+  padding: 4px 12px;
+  margin: -4px -12px;
+}
+.ui-rk .nm .tn.cjk { font-size: 23.44px; letter-spacing: inherit; }
+.ui-rk .nm .rn { margin-left: .32em; }
+.ui-rk .nm .rn:empty { display: none; }
+
+/* ---------- the short version's small banner: "DIVISION UP" (or its translation), floating right above the XP bar ---------- */
+.ui-rk .tag {
+  width: 176px;
+  height: 20px;
+  margin: -10px 0 0 -88px;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ui-rk .tag .bg > .skin {
+  opacity: .72;
+  -webkit-mask: linear-gradient(90deg, transparent, #000 28%, #000 72%, transparent);
+  mask: linear-gradient(90deg, transparent, #000 28%, #000 72%, transparent);
+}
+.ui-rk .tag .bg::before { display: none; }
+.ui-rk .tg {
+  font-size: var(--ui-fs-sm);
+  font-weight: var(--ui-w-strong);
+  color: var(--rank-hi);
+  text-shadow: var(--ui-tshadow);
+}
+.ui-rk .tg.cjk { font-size: 10.42px; }

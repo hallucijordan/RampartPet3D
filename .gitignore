@@ -1,0 +1,38 @@
+# Dependencies and build output
+node_modules/
+app/dist/
+app/out/
+app/release/
+__pycache__/
+*.pyc
+
+# Local config (copy tools/assets.example.json to assets.json)
+assets.json
+
+# Game assets never go into this repo: extract them from your own game install
+app/assets/
+*.glb
+*.gltf
+*.bin
+*.blend
+*.blend1
+*.cast
+*.smd
+*.rmdl
+*.rseq
+*.rpak
+*.mbnk
+*.dds
+*.ktx2
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.mp4
+*.webm
+*.wav
+*.ogg
+*.ttf
+*.otf
+*.woff
+*.woff2

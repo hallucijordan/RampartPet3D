@@ -1,0 +1,219 @@
+/* UI foundation: design tokens + the #ui layer + shared utilities. Each widget's styles live in its own css (hud.css / xpbar.css / rankup.css / panel.css)
+ *
+ * Rules
+ *  - no relative url(): images always come from the variables var(--ui-img-<name>) that assets.js sets on :root (only then are paths right after packaging)
+ *  - sizes sit on a 4 px grid (--ui-1 … --ui-8); strokes / hairlines are the exception (1 / 1.5 px)
+ *  - text centered in a box uses .ui-tx + .ui-t-s / m / l / xl / 2xl (see "optically centered text" below): box heights are even,
+ *    Latin cap height is an even number of pixels and CJK font sizes put the baseline on a whole pixel, so top and bottom space are exactly equal (the baseline is rounded when rendering; a mismatch is off by half a pixel)
+ *  - text not in a box (descriptions, footnotes) uses the raw --ui-fs-* sizes: Saira cap height = 0.6877 em, every step has a whole-pixel cap height
+ *  - no pure white: the brightest text is --ui-fg-hi (#e2e5e8), labels one step darker; pure white only for pressed / selected highlights
+ */
+
+:root {
+  /* ---------- fonts ---------- */
+  --ui-font: "Saira", "MiSans VF", "Microsoft YaHei UI", "Segoe UI", sans-serif;
+  --ui-stretch: 115%;
+  /* three font weights (same across the whole UI; do not use 800: the previous version looked "sugary" because it was too heavy)
+     500 labels / tabs / hints; 600 numbers / names / current tab (numbers use one weight across the UI: HUD, XP bar, panel, rank up);
+     650 titles / section heads / button text on light plates / toggle state (small text on a color block needs a bit more ink) */
+  --ui-w-regular: 400;
+  --ui-w-label: 500;
+  --ui-w-strong: 600;
+  --ui-w-num: 600;
+  --ui-w-title: 650;
+  /* raw font size scale (cap height in parentheses): xs 10.18 (7) · sm 11.63 (8) · md 13.09 (9) · lg 14.54 (10) · xl 17.45 (12) · 2xl 20.36 (14) · 3xl 26.17 (18) */
+  --ui-fs-xs: 10.18px;
+  --ui-fs-sm: 11.63px;
+  --ui-fs-md: 13.09px;
+  --ui-fs-lg: 14.54px;
+  --ui-fs-xl: 17.45px;
+  --ui-fs-2xl: 20.36px;
+  --ui-fs-3xl: 26.17px;
+  /* letter spacing: uppercase English labels 1–2 px; CJK labels slightly tighter */
+  --ui-ls-caps: 1.2px;
+  --ui-ls-wide: 2px;
+  --ui-ls-num: .3px;
+  --ui-ls-cjk: .6px;
+
+  /* ---------- text colors (on dark) ---------- */
+  --ui-fg-hi: #e2e5e8;    /* numbers, current tab: brightest (upper limit from feedback: soft off-white, not pure white) */
+  --ui-fg: #d6d9dc;       /* body text, labels: soft off-white (feedback: HUD text should not be too white or bright) */
+  --ui-fg-2: #a9aeb5;     /* secondary */
+  --ui-fg-3: #7f858e;     /* hints, units */
+  --ui-fg-4: #585d65;     /* disabled */
+  --ui-ink: #121417;      /* text on light plates */
+  --ui-plate: #e9ebed;    /* light plate (menu button, equip button, counter tag): close to white but not glaring */
+  /* text shadow: only a faint 1 px shadow, for readability without blur */
+  --ui-tshadow: 0 1px 1px rgba(0, 0, 0, .38);
+
+  /* ---------- brand / state colors ---------- */
+  --ui-rampart: #f5a23a;  /* Rampart orange (picked from screenshots) */
+  --ui-red: #ff3b43;      /* selected / danger */
+  --ui-toggle-off: #3a3e45;
+
+  /* rank colors (rank border colors from the game color table ui_colors.csv) */
+  --ui-rank-rookie: #9f8a78;
+  --ui-rank-bronze: #99786b;
+  --ui-rank-silver: #afafb9;
+  --ui-rank-gold: #d0b583;
+  --ui-rank-platinum: #5ad2ff;
+  --ui-rank-diamond: #1d8ff2;
+  --ui-rank-master: #7e4ad7;
+  --ui-rank-apex: #ff4139;
+  /* rarity text colors */
+  --ui-common: #c3d8d9;
+  --ui-rare: #62c8ff;
+  --ui-epic: #e86cff;
+  --ui-legendary: #ffcd3c;
+  --ui-collab: #00ffcc;
+
+  /* ---------- fills, lines ---------- */
+  --ui-hud-stroke: rgba(222, 232, 238, .55);   /* HUD stroke (picked from in-match screenshots) */
+  --ui-hud-fill: rgba(8, 10, 13, .46);          /* HUD fill: translucent dark, shows what is behind */
+  --ui-carbon: rgba(11, 12, 15, .85);           /* dark tint over the carbon texture */
+  --ui-line: rgba(255, 255, 255, .14);          /* hairline divider */
+  --ui-frame: rgba(255, 255, 255, .62);         /* thin panel frame */
+  --ui-row-frame: rgba(255, 255, 255, .34);     /* list row frame */
+  --ui-shadow: 0 10px 28px rgba(0, 0, 0, .5);
+
+  /* ---------- spacing: 4 px grid ---------- */
+  --ui-1: 4px; --ui-2: 8px; --ui-3: 12px; --ui-4: 16px; --ui-5: 20px; --ui-6: 24px; --ui-7: 28px; --ui-8: 32px;
+
+  /* ---------- motion ---------- */
+  --ui-ease-out: cubic-bezier(.2, .9, .2, 1);     /* enter */
+  --ui-ease-in-out: cubic-bezier(.6, 0, .3, 1);   /* retract / move */
+  --ui-ease-std: cubic-bezier(.3, 0, .2, 1);      /* general state changes (color, opacity) */
+  --ui-t-fast: 120ms;
+  --ui-t: 180ms;
+  --ui-t-slow: 320ms;
+
+  /* ---------- layers (#ui creates no stacking context; widgets compare directly with layers in body) ----------
+     speech bubble 5 < HUD / XP bar 20 < rank up 30 < BOOM! comic layer 997 (comic.js) < settings panel 998 < developer panel 1000 */
+  --ui-z-hud: 20;
+  --ui-z-xp: 21;
+  --ui-z-rankup: 30;
+  --ui-z-panel: 998;
+}
+
+/* ---------- the #ui layer ----------
+   absolute, not fixed, and no z-index / transform / opacity: no stacking context, so widget z-indexes can sort against the comic layer (997) */
+#ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  font-family: var(--ui-font);
+  font-stretch: var(--ui-stretch);
+  font-weight: var(--ui-w-label);
+  font-synthesis: none;
+  font-kerning: normal;
+  font-variant-numeric: tabular-nums;
+  color: var(--ui-fg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+  user-select: none;
+  -webkit-user-select: none;
+  line-height: 1;
+}
+#ui *, #ui *::before, #ui *::after { box-sizing: border-box; }
+/* widget roots: each positions itself; hidden until fonts load (avoids a flash of the system font), then fades in.
+   the fade uses an animation (from only): after it ends the widget's own opacity applies (widgets may set inline opacity freely without conflict);
+   only plays on first show (.boot, removed by index.js when done): widgets coming back from display: none later (panel opens, HUD reopens) do not replay it or stack with their own fades */
+#ui > .ui-part { position: absolute; left: 0; top: 0; }
+#ui:not(.ready) > .ui-part { visibility: hidden; }
+#ui.boot > .ui-part { animation: ui-fade-in var(--ui-t-slow) var(--ui-ease-std); }
+#ui > .ui-part.off { display: none; }
+@keyframes ui-fade-in { from { opacity: 0; } }
+#ui [data-mouse] { pointer-events: auto; }   /* elements that take the mouse get data-mouse (and must report their area in rects() for the overlay to capture the mouse) */
+
+/* ---------- optically centered text .ui-tx ----------
+   the line box is trimmed to "cap height <-> baseline" (text-box); with a flex container and align-items: center, the ink of capitals / digits sits exactly in the middle
+   text containing CJK gets .cjk (added automatically by tx() in util.js): MiSans CJK ink measured from 0.82 em above to 0.052 em below the baseline
+   (10–20 px, weight 500 / 600, average of common characters); padding extends the trim box to the CJK ink box before centering; mixed text keeps a shared baseline, the box follows the CJK glyphs
+   ⚠ the text baseline is rounded to a whole pixel when rendering, so "centered" is exact only when font size and box height pair up (otherwise half a pixel off):
+     box heights are always even (20 / 24 / 28 / 32 …), font sizes use the .ui-t-* steps below (Latin cap height even; CJK size = k / 0.384, baseline exactly on a whole pixel)
+   check: in a screenshot, the difference between top and bottom space around the ink is ≤ 0.5 px */
+.ui-tx {
+  display: block;
+  line-height: 1;
+  white-space: nowrap;
+  text-box: trim-both cap alphabetic;
+}
+.ui-tx.cjk {
+  padding-top: .132em;
+  padding-bottom: .052em;
+  letter-spacing: var(--ui-ls-cjk);
+}
+/* font size steps for even-height boxes: Latin / digits (cap height) <-> CJK (.cjk switches automatically)
+   s: 11.63 (8) <-> 10.42   m: 14.54 (10) <-> 13.02   l: 17.45 (12) <-> 15.63
+   (larger steps: 20.36 (14) <-> 18.23, 26.17 (18) <-> 23.44; panel titles / rank up banner write them in their own css) */
+.ui-t-s { font-size: 11.63px; } .ui-t-s.cjk { font-size: 10.42px; }
+.ui-t-m { font-size: 14.54px; } .ui-t-m.cjk { font-size: 13.02px; }
+.ui-t-l { font-size: 17.45px; } .ui-t-l.cjk { font-size: 15.63px; }
+
+/* common type combos */
+.ui-num { font-weight: var(--ui-w-num); letter-spacing: var(--ui-ls-num); font-variant-numeric: tabular-nums; }
+
+/* ---------- tinted white-image icon .ui-ic ----------
+   <i class="ui-ic" style="--src: var(--ui-img-hud-kills); --w: 11px; --h: 13px; --c: var(--ui-fg)"></i>
+   if the image fails to load the icon is simply not shown (the mask layer counts as transparent), no error */
+.ui-ic {
+  display: inline-block;
+  flex: none;
+  width: var(--w, 14px);
+  height: var(--h, 14px);
+  background: var(--c, currentColor);
+  -webkit-mask: var(--src) center / contain no-repeat;
+  mask: var(--src) center / contain no-repeat;
+}
+
+/* ---------- 9-slice mask border .ui-f9 ----------
+   a white border image is used as a mask; color from --fc, image and slices from --fm (image + slices + display widths, see panel.css): --fm: var(--ui-img-frame-b057) 8 36 36 36 / 4px 18px 18px 18px stretch
+   the border is drawn in ::after (top layer), content and texture as usual; add a .ui-carbon layer when a texture is needed */
+.ui-f9 { position: relative; isolation: isolate; }
+.ui-f9::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: var(--fc, var(--ui-frame));
+  -webkit-mask-box-image: var(--fm);
+  transition: background-color var(--ui-t) var(--ui-ease-std);
+}
+
+/* ---------- carbon background .ui-carbon ----------
+   dark + carbon fiber twill (16×32 tile) + 5% fine noise; place it as the first layer inside the element to fill (absolute, full size, z-index: -1) */
+.ui-carbon {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(var(--ui-carbon), var(--ui-carbon)),
+    var(--ui-img-tex-twill) 0 0 / 16px 32px,
+    #0c0d10;
+}
+.ui-carbon::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--ui-img-tex-noise) 0 0 / 128px;
+  opacity: .05;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/* ---------- two-layer shape .ui-plate (HUD parallelograms, chamfered buttons) ----------
+   shape variables are set by bluntPlate() / chamferPlate() in geom.js: --ui-pi fill, --ui-pr stroke ring
+   ::before is the fill (below), ::after the stroke ring (above): the fill only tucks 0.5 px under the inner edge of the stroke, never leaks outside it */
+.ui-plate { position: relative; isolation: isolate; }
+.ui-plate::before, .ui-plate::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+.ui-plate::before { clip-path: var(--ui-pi); background: var(--plate-fill, var(--ui-hud-fill)); }
+.ui-plate::after { clip-path: var(--ui-pr); background: var(--plate-stroke, var(--ui-hud-stroke)); transition: background-color var(--ui-t) var(--ui-ease-std); }
+/* HUD dot fill: regular white dots (tex_dots tiled 247 px wide = 0.5× the original) over translucent dark */
+.ui-plate.dots::before {
+  background:
+    linear-gradient(var(--ui-hud-fill), var(--ui-hud-fill)),
+    var(--ui-img-tex-dots) 0 0 / 247px auto,
+    rgba(8, 10, 13, .3);
+}

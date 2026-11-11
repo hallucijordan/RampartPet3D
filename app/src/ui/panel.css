@@ -1,0 +1,416 @@
+/* Settings panel (panel.js): v3 style. --rank = current rank color, --rc = rarity color (set by js)
+ *
+ * Size rules (all on the 4 px grid, box heights always even, text uses the .ui-t-* steps, top / bottom space around ink measured)
+ *   panel 440 wide; side padding 16; header 72 (content center clears the 4 px at the top of the border); tab row 12 px text band + 9 + 3 px underline
+ *   the three pages stack in one cell: height = tallest page (settings), the skins page's row heights are computed to fill the same height
+ * borders: 9-slice masks are always shown at 0.5× (a 2 px line in the source = 1 whole pixel, no blur);
+ *   b084 / b106 use the "clean masks" panel.js builds at runtime (the dark halo outside the source stroke removed, 1 px padding all round so lines land on whole pixels)
+ * fills do not leak: each backing is clipped to the outer outline of its border image (the clip-path numbers are measured from the source images, see the comments at each)
+ */
+.ui-panel {
+  --pad: 16px;
+  z-index: var(--ui-z-panel);
+  width: 440px;
+  display: none;
+  flex-direction: column;
+  color: var(--ui-fg);
+  --fc: rgba(255, 255, 255, .66);
+  /* collab color: the game table's #00ffcc is the most saturated point of the whole panel, pulled a little toward the common color here (the name still reads cyan at a glance), aligned in lightness / saturation with the other rarity colors */
+  --ui-collab: color-mix(in oklab, #00ffcc 82%, #c3d8d9);
+  /* b084: source slices 30 12 12 76, the clean mask adds 1 px all round -> 32 14 14 78, shown at 0.5× */
+  --fm: var(--pn-b084, var(--ui-img-frame-b084)) 32 14 14 78 / 16px 7px 7px 39px stretch;
+  filter: drop-shadow(0 12px 28px rgba(0, 0, 0, .5)) drop-shadow(0 1px 2px rgba(0, 0, 0, .35));
+  pointer-events: auto;
+  will-change: transform, opacity;
+}
+.ui-panel.on { display: flex; }
+.ui-panel button { all: unset; box-sizing: border-box; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.ui-panel button:focus-visible { outline: 1px solid rgba(245, 162, 58, .8); outline-offset: 2px; }
+
+/* backing: carbon texture, clipped inside the border's outer outline: the left / right / bottom lines are at 1 px, the top line at 4 px (the 4 px above only hold the hatched corner tag),
+   the top left corner follows the tag's 45° edge (x + y = 8, inside the tag's solid area, so it never shows) */
+.ui-panel > .skin {
+  overflow: hidden;
+  clip-path: polygon(1px 7px, 4px 4px, calc(100% - 1px) 4px, calc(100% - 1px) calc(100% - 1px), 1px calc(100% - 1px));
+}
+/* Rampart orange in the header: drawn in the backing (clipped the same way), fading out left to right */
+.ui-panel > .skin .glow {
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 76px;
+  background:
+    linear-gradient(180deg, transparent 55%, rgba(11, 12, 15, .35)),
+    linear-gradient(90deg, rgba(245, 162, 58, .2), rgba(245, 162, 58, .07) 42%, transparent 72%);
+}
+
+/* ---------- header ---------- */
+.ui-panel .hd {
+  position: relative;
+  height: 72px;
+  padding: 4px var(--pad) 0 15px;      /* top 4 = top edge of the border; the diamond's left tip ink is 1 px inside its box, 15 aligns it with the content's left edge 16 */
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ui-panel .hd::after {
+  content: "";
+  position: absolute;
+  left: 12px; right: 12px; bottom: 0;
+  height: 6px;
+  background: var(--ui-img-div-step) 0 0 / 100% 12px no-repeat;
+  opacity: .2;
+}
+.ui-panel .dia { position: relative; width: 44px; height: 44px; flex: none; }
+.ui-panel .dia .o { position: absolute; inset: 0; --w: 44px; --h: 44px; --src: var(--ui-img-legend-diamond); --c: var(--ui-rampart); }
+.ui-panel .dia .face { position: absolute; left: 9px; top: 6px; --w: 26px; --h: 32px; --src: var(--ui-img-legend-face); --c: var(--ui-fg-hi); }
+.ui-panel .ttl { display: grid; gap: 7px; }
+.ui-panel .ttl .name {
+  font-size: var(--ui-fs-2xl);       /* 20.36: cap height 14 */
+  font-weight: var(--ui-w-title);
+  letter-spacing: 3px;
+  color: var(--ui-rampart);
+}
+.ui-panel .ttl .name.cjk { font-size: 18.23px; letter-spacing: 2px; }
+.ui-panel .ttl .tag { font-size: var(--ui-fs-xs); font-weight: var(--ui-w-strong); letter-spacing: 3px; color: rgba(245, 162, 58, .62); }
+.ui-panel .ttl .tag:empty { display: none; }
+.ui-panel .who { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.ui-panel .who-t { display: grid; gap: 7px; justify-items: end; }
+.ui-panel .who .rk { font-size: var(--ui-fs-md); font-weight: var(--ui-w-strong); letter-spacing: var(--ui-ls-caps); color: var(--rank-hi, var(--ui-fg-hi)); }
+.ui-panel .who .rk.cjk { font-size: 12.5px; }
+.ui-panel .who .lvl { font-size: var(--ui-fs-xs); font-weight: var(--ui-w-label); letter-spacing: .6px; color: var(--ui-fg-3); }
+.ui-panel .rk-ic { width: 32px; height: 32px; object-fit: contain; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--rank) 35%, transparent)); }
+
+/* ---------- tabs ----------
+   each tab: a 12 px text band on top (text optically centered in it) + 9 px + 3 px underline; the close button uses the same text band, so it shares the tab text's center line */
+.ui-panel .tabs { position: relative; display: flex; gap: 24px; padding: 16px var(--pad) 6px; }
+.ui-panel .tab, .ui-panel .x {
+  position: relative;
+  height: 24px;
+  display: grid;
+  grid-template-rows: 12px;
+  grid-auto-flow: column;
+  align-content: start;
+  align-items: center;
+  column-gap: 6px;
+  color: var(--ui-fg-3);
+  transition: color var(--ui-t-fast) var(--ui-ease-std);
+}
+.ui-panel .tab > .ui-tx { font-weight: var(--ui-w-label); letter-spacing: 1.6px; margin-right: -1.6px; }
+.ui-panel .tab > .ui-tx.cjk { letter-spacing: 1px; margin-right: -1px; }
+.ui-panel .tab:hover { color: var(--ui-fg); }
+.ui-panel .tab.on { color: var(--ui-fg-hi); }
+.ui-panel .tab.on > .ui-tx { font-weight: var(--ui-w-strong); }
+.ui-panel .tab::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 3px;
+  background: var(--ui-img-line-dashed) center / 100% 100% no-repeat;
+  opacity: 0;
+  transform: scaleX(.6);
+  transform-origin: 0 50%;
+  transition: opacity var(--ui-t) var(--ui-ease-std), transform var(--ui-t) var(--ui-ease-out);
+}
+.ui-panel .tab.on::after { opacity: .92; transform: none; }
+.ui-panel .x { margin-left: auto; }
+.ui-panel .x .ui-tx { letter-spacing: 1.2px; }
+.ui-panel .x .ui-tx.cjk { letter-spacing: 1px; }
+.ui-panel .x:hover { color: var(--ui-fg-hi); }
+
+/* ---------- content: three pages stacked in one cell ---------- */
+.ui-panel .bd { position: relative; display: grid; grid-template-rows: 294px; padding: 14px var(--pad) 0; }   /* all three pages 294 high: the settings page (with the added "look" and "sleep after" rows) is tallest; skins page 18 + 12 + list viewport 264 (exactly 5 cells). section head -> content is always 12 on all three pages */
+.ui-panel .bd::before {
+  content: "";
+  position: absolute;
+  left: 12px; right: 12px; top: 0;
+  height: 3px;
+  background: var(--ui-img-div-thin) 0 0 / 100% 6px no-repeat;
+  opacity: .28;
+}
+.ui-panel .bd > section { grid-area: 1 / 1; visibility: hidden; pointer-events: none; }
+.ui-panel .bd > section.on { visibility: visible; pointer-events: auto; }
+
+/* section head: label + a light chamfered tag on the right (with a parallel thin slash "//" on its left), below it a 2 px line runs from the left all the way into the tag bottom; tag and line are one piece (after the game's "OWNED 34/66")
+   tag, slash and line are one polygon / one opaque color, so overlaps do not brighten
+   the tag and the line below it share a color and join, reading as one 18 px tall white block: text is centered in those 18 px (5 above and below), not in the tag face's own 16 px */
+.ui-panel .sh { --shc: #d9dce0; position: relative; flex: none; height: 18px; padding-bottom: 2px; display: flex; align-items: center; }
+.ui-panel .sh::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--shc); }
+.ui-panel .sh .lab { font-size: 11.63px; font-weight: var(--ui-w-title); letter-spacing: 1.8px; color: var(--ui-fg-hi); }
+.ui-panel .sh .lab.cjk { font-size: 10.42px; letter-spacing: 1.2px; }
+.ui-panel .sh .cnt {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 -2px auto;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  padding: 0 9px 0 27px;
+  background: var(--shc);
+  color: var(--ui-ink);
+  clip-path: polygon(0 100%, 0 16px, 16px 0, 20px 0, 4px 16px, 8px 16px, 24px 0, 100% 0, 100% 100%);
+}
+.ui-panel .sh .cnt .ui-tx { font-size: 11.63px; font-weight: var(--ui-w-title); letter-spacing: 1.2px; margin-right: -1.2px; }
+.ui-panel .sh .cnt .ui-tx.cjk { font-size: 10.42px; letter-spacing: 1px; margin-right: -1px; }
+
+/* ---------- list rows / size cards: b057 row frame (two chamfered bottom corners), selected switches to b106 (one thick side) tinted red ----------
+   backing as in v3: one step lighter gray than the panel backing (rows "float", mean brightness ≈ 46, panel ≈ 22), no dot texture (dots are only for the HUD); hover one step lighter
+   selected: v3's dark reddish gray (≈ #553a3c) + a red gradient tint from the left
+   b057 at 0.5×: line 1 px from the outer edge, bottom 45° chamfer outer leg 9.5 -> backing inset 1 px + 11 px chamfer clip (hidden under the 7 px thick diagonal band)
+   b106 (clean mask, 1 px padding) at 0.5×: top / left line outer edge 2 px, right / bottom thick edge outer edge 1 px, bottom right chamfer outer leg 18
+     -> when selected the border layer extends 1 px out on top and left (inset of ::after), so all four outer edges are at 1 px and match b057's outline exactly: clicking a row only swaps the frame, it does not shrink */
+.ui-panel .row, .ui-panel .sz {
+  --fc: rgba(255, 255, 255, .3);
+  --fm: var(--ui-img-frame-b057) 8 36 36 36 / 4px 18px 18px 18px stretch;
+  --clip: polygon(1px 1px, calc(100% - 1px) 1px, calc(100% - 1px) calc(100% - 11px), calc(100% - 11px) calc(100% - 1px), 11px calc(100% - 1px), 1px calc(100% - 11px));
+  --bg: rgba(255, 255, 255, .1);
+  --tint: transparent;
+  position: relative;
+  isolation: isolate;
+}
+.ui-panel .row::before, .ui-panel .sz::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  clip-path: var(--clip);
+  background: linear-gradient(90deg, var(--tint), transparent 85%), linear-gradient(var(--bg), var(--bg));
+}
+.ui-panel .row:hover, .ui-panel .sz:hover { --fc: rgba(255, 255, 255, .56); --bg: rgba(255, 255, 255, .145); }
+.ui-panel .row.sel, .ui-panel .sz.sel {
+  --fc: var(--ui-red);
+  --fm: var(--pn-b106, var(--ui-img-frame-b106)) 14 44 44 14 / 7px 22px 22px 7px stretch;
+  --clip: polygon(1px 1px, calc(100% - 1px) 1px, calc(100% - 1px) calc(100% - 19px), calc(100% - 19px) calc(100% - 1px), 1px calc(100% - 1px));
+  --bg: rgba(232, 140, 144, .2);
+  --tint: rgba(255, 59, 67, .16);
+}
+.ui-panel .row.sel::after, .ui-panel .sz.sel::after { inset: -1px 0 0 -1px; }
+
+/* ---------- skins page: list (4 cells visible, scrolls beyond that) + info card (preview image) ---------- */
+.ui-panel section[data-page="skins"] { display: grid; grid-template-columns: 1fr 164px; gap: 14px; }
+.ui-panel .list { position: relative; display: flex; flex-direction: column; min-width: 0; }
+/* viewport 264 = 5 cells (5 × 48 + 4 × 6); section head 18 + 12 = 30, total 294 = content height (bottom edge aligned with the info card)
+   cell height and gaps unchanged; on the right a scrollbar after the game's (square ends, flat: dark gray track, light gray thumb, about 4% of the list width) */
+.ui-panel .lv { position: relative; height: 264px; margin-top: 12px; padding-right: 14px; overflow: hidden; }
+.ui-panel .lc { display: grid; grid-auto-rows: 48px; gap: 6px; will-change: transform; }
+.ui-panel .sb { position: absolute; right: 0; top: 0; bottom: 0; width: 8px; background: rgba(255, 255, 255, .09); cursor: pointer; }
+.ui-panel .sb.none { display: none; }
+.ui-panel .sb .th { position: absolute; left: 0; right: 0; top: 0; background: rgba(214, 218, 222, .56); will-change: transform; transition: background-color var(--ui-t-fast) var(--ui-ease-std); }
+.ui-panel .sb:hover .th, .ui-panel .sb.drag .th { background: rgba(232, 235, 238, .78); }
+/* when the list is scrolled mid-way, a very faint dark edge sits over the clipped cells at top and bottom (hints at more content; the game just clips; only 8 px and very faint here, not a blurry fade mask) */
+.ui-panel .lv::before, .ui-panel .lv::after { content: ""; position: absolute; left: 0; right: 14px; height: 8px; z-index: 1; pointer-events: none; opacity: 0; transition: opacity var(--ui-t) var(--ui-ease-std); }
+.ui-panel .lv::before { top: 0; background: linear-gradient(rgba(8, 9, 11, .5), transparent); }
+.ui-panel .lv::after { bottom: 0; background: linear-gradient(transparent, rgba(8, 9, 11, .5)); }
+.ui-panel .lv.up::before, .ui-panel .lv.dn::after { opacity: 1; }
+.ui-panel .row {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 15px 0 14px;
+  color: var(--rc);
+}
+.ui-panel .row .star { -webkit-mask-position: 50% calc(50% + .55px); mask-position: 50% calc(50% + .55px); }   /* the bookmark star ink sits 1.3 px high: shifted down the mask lands back on whole pixels (only at ≥ .5; .3–.45 blurs), ink center within ≤ .4 px of the name */
+.ui-panel .row .nm { font-weight: var(--ui-w-strong); letter-spacing: .5px; }
+.ui-panel .row .nm.cjk { letter-spacing: 1.5px; }
+.ui-panel .row .tg { font-weight: var(--ui-w-label); letter-spacing: 1.4px; color: var(--ui-fg-3); }
+.ui-panel .row .tg.cjk { letter-spacing: 1px; }
+.ui-panel .row .ck { margin-left: auto; opacity: 0; transform: scale(.6); transition: opacity var(--ui-t) var(--ui-ease-std), transform var(--ui-t) var(--ui-ease-out); }
+.ui-panel .row.on .ck { opacity: 1; transform: none; }
+/* placeholder cell (locked): as in the game, darker backing, fainter frame, gray name, a gray lock on the right */
+.ui-panel .row.soon:not(.sel) { --bg: rgba(255, 255, 255, .045); --fc: rgba(255, 255, 255, .16); }
+.ui-panel .row.soon:not(.sel):hover { --bg: rgba(255, 255, 255, .075); --fc: rgba(255, 255, 255, .3); }
+.ui-panel .row.soon .nm { color: var(--ui-fg-3); font-weight: var(--ui-w-label); }
+.ui-panel .row.soon .lk { margin-left: auto; }
+
+/* info card: name + rarity, below it the preview image of the skin (real model render, assets/ui/skins/); rarity-color bar on the left edge + an arrow pointing at the selected row; hatched corner tag top right
+   the preview runs from below the name to the card bottom, legs fade out downward, the "Equip" button sits on the faded part; a very faint rarity-color glow behind */
+.ui-panel .card {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 12px 12px 17px;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--rc) 9%, transparent), transparent 70%),
+    rgba(255, 255, 255, .025);
+}
+.ui-panel .card .bar { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--rc); transition: background-color var(--ui-t) var(--ui-ease-std); z-index: 2; }
+.ui-panel .card .tri {
+  position: absolute;
+  left: -7px;
+  top: calc(var(--tri, 40px) - 7px);
+  width: 7px; height: 14px;
+  background: var(--rc);
+  clip-path: polygon(100% 0, 100% 100%, 0 50%);
+  transition: top var(--ui-t) var(--ui-ease-out), background-color var(--ui-t) var(--ui-ease-std), opacity var(--ui-t-fast) var(--ui-ease-std);
+}
+.ui-panel .card .tri.off { opacity: 0; }
+/* hatched corner tag top right: only the corner part of the source image (chamfer + small cross + three hatch lines, 40 px) */
+.ui-panel .card .hatch {
+  position: absolute;
+  right: 0; top: 0;
+  width: 40px; height: 20px;
+  background: var(--ui-img-corner-hatch) 0 0 / 101px 20px no-repeat;
+  transform: scaleX(-1);
+  opacity: .3;
+  z-index: 2;
+}
+.ui-panel .card .c-nm { position: relative; z-index: 2; font-size: 14.54px; font-weight: var(--ui-w-strong); letter-spacing: .4px; color: var(--ui-fg-hi); }
+.ui-panel .card .c-nm.cjk { font-size: 15.63px; letter-spacing: 1.5px; }
+.ui-panel .card .c-rr { position: relative; z-index: 2; margin-top: 9px; font-size: 10.18px; font-weight: var(--ui-w-strong); letter-spacing: 1.8px; color: var(--rc); }
+.ui-panel .card .c-rr.cjk { font-size: 10.42px; letter-spacing: 1.5px; }
+/* preview: image 238 high (full body about 0.55×), top of head 6 px below the name, feet cut off below the card; the bottom 34% fades to transparent (the button on top does not clash) */
+.ui-panel .card .pv { position: absolute; left: 3px; right: 0; top: 54px; bottom: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.ui-panel .card .halo {
+  position: absolute; left: 50%; top: 18px; width: 150px; height: 150px; margin-left: -75px;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--rc) 22%, transparent), transparent);
+  transition: background var(--ui-t) var(--ui-ease-std);
+}
+.ui-panel .card .pi {
+  position: absolute; left: 50%; top: 0; height: 238px; width: auto; transform: translateX(-50%); opacity: 0;
+  -webkit-mask: linear-gradient(#000 58%, transparent 88%);
+  mask: linear-gradient(#000 58%, transparent 88%);
+}
+/* locked: silhouette of the base skin, gray, a lock in the middle */
+.ui-panel .card .sil {
+  position: absolute; left: 50%; top: 0; width: 150px; height: 238px; margin-left: -75px;
+  background: rgba(255, 255, 255, .07);
+  -webkit-mask: var(--ui-skin-soon) 0 0 / 100% 100% no-repeat, linear-gradient(#000 58%, transparent 88%);
+  -webkit-mask-composite: source-in;
+  mask: var(--ui-skin-soon) 0 0 / 100% 100% no-repeat, linear-gradient(#000 58%, transparent 88%);
+  mask-composite: intersect;
+  opacity: 0; transition: opacity var(--ui-t) var(--ui-ease-std);
+}
+.ui-panel .card .slk { position: absolute; left: 50%; top: 64px; margin-left: -9px; opacity: 0; transition: opacity var(--ui-t) var(--ui-ease-std); }
+.ui-panel .card.soon .sil, .ui-panel .card.soon .slk { opacity: 1; }
+.ui-panel .card .eq { margin-top: auto; z-index: 2; }
+.ui-panel .card.soon .eq { pointer-events: none; }
+.ui-panel .card.soon .eq .eqk { display: none; }
+/* line-art face of the size cards: the source bun touches the image's right edge (30 px opaque in the last column), which shows as a hard vertical cut when scaled up. A second mask layer fades the right 20% */
+.ui-panel .sz .face {
+  -webkit-mask: var(--src) center / contain no-repeat, linear-gradient(90deg, #000 80%, transparent);
+  -webkit-mask-composite: source-in;
+  mask: var(--src) center / contain no-repeat, linear-gradient(90deg, #000 80%, transparent);
+  mask-composite: intersect;
+}
+
+/* buttons: two-layer plate with a chamfered bottom right corner (shape from chamferPlate), text optically centered; the trailing letter spacing is cancelled with a negative right margin so the text group is truly centered */
+.ui-panel .eq, .ui-panel .act {
+  position: relative;
+  isolation: isolate;
+  flex: none;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  transition: color var(--ui-t-fast) var(--ui-ease-std);
+}
+.ui-panel .eq .ui-tx, .ui-panel .act .ui-tx { font-weight: var(--ui-w-title); letter-spacing: 2px; margin-right: -2px; }
+.ui-panel .eq .ui-tx.cjk, .ui-panel .act .ui-tx.cjk { letter-spacing: 3px; margin-right: -3px; }
+.ui-panel .eq.ui-plate::before, .ui-panel .act.ui-plate::before { transition: background-color var(--ui-t-fast) var(--ui-ease-std); }
+.ui-panel .eq { margin-top: auto; color: var(--ui-ink); --plate-fill: var(--ui-plate); --plate-stroke: var(--ui-plate); }
+.ui-panel .eq:hover { --plate-fill: #f5f6f7; --plate-stroke: #f5f6f7; }
+.ui-panel .eq .eqk { display: none; --c: currentColor; }
+.ui-panel .eq.done .eqk { display: block; }
+.ui-panel .eq.done, .ui-panel .eq.busy { cursor: default; color: var(--ui-fg-2); --plate-fill: rgba(255, 255, 255, .04); --plate-stroke: rgba(255, 255, 255, .22); }
+.ui-panel .eq.busy { color: var(--ui-rampart); --plate-stroke: rgba(245, 162, 58, .5); }
+
+/* ---------- size page ---------- */
+.ui-panel section[data-page="size"] { display: flex; flex-direction: column; }
+.ui-panel section[data-page="size"] .sh { margin-bottom: 12px; }
+.ui-panel .cards { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.ui-panel .sz { display: flex; flex-direction: column; padding: 0 0 18px; color: var(--ui-fg-3); }
+/* line-art faces drawn to size ratio (84 : 100 : 124 ≈ 150 : 180 : 220), chins aligned on one ground line (side by side, the three cards show the real relative sizes), letter + name below the ground line
+   height lines: each card draws the head heights of "its own tier and the larger ones" (its own solid, larger ones dashed), so the upper part of a small card reads as "how much is missing", and the lines align across the three cards */
+.ui-panel .sz .lb { margin-top: 12px; height: 20px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.ui-panel .sz .let { font-weight: var(--ui-w-num); letter-spacing: 0; color: var(--ui-fg-2); transition: color var(--ui-t-fast); }
+.ui-panel .sz .nm { font-weight: var(--ui-w-strong); letter-spacing: 1.6px; margin-right: -1.6px; color: var(--ui-fg-3); transition: color var(--ui-t-fast); }
+.ui-panel .sz .nm.cjk { letter-spacing: 1px; margin-right: -1px; }
+.ui-panel .sz .fig { position: relative; flex: 1; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 1px; }
+.ui-panel .sz .fig::after { content: ""; position: absolute; left: 18px; right: 18px; bottom: 0; height: 1px; background: rgba(255, 255, 255, .16); }
+.ui-panel .sz .gl {
+  position: absolute; left: 18px; right: 18px; height: 1px;
+  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, .11) 0 3px, transparent 3px 6px);
+}
+.ui-panel .sz .gl.own { background: rgba(255, 255, 255, .2); transition: background-color var(--ui-t) var(--ui-ease-std); }
+.ui-panel .sz.sel .gl.own { background: rgba(255, 59, 67, .55); }
+.ui-panel .sz .face { --c: currentColor; opacity: .42; transition: background-color var(--ui-t) var(--ui-ease-std), opacity var(--ui-t) var(--ui-ease-std); }
+.ui-panel .sz:hover .face { opacity: .6; }
+.ui-panel .sz.sel .face { opacity: .9; }
+.ui-panel .sz:hover { color: var(--ui-fg-3); }
+.ui-panel .sz:hover .let { color: var(--ui-fg-hi); }
+.ui-panel .sz.sel { color: var(--ui-fg); --bg: rgba(232, 140, 144, .17); --tint: rgba(255, 59, 67, .1); }   /* cards are large, so the selected red-gray is one step lighter than in list rows */
+.ui-panel .sz.sel .let { color: var(--ui-fg-hi); }
+.ui-panel .sz.sel .nm { color: var(--ui-fg-2); }
+.ui-panel .sz .cc { position: absolute; right: 12px; top: 12px; opacity: 0; transform: scale(.6); transform-origin: 50% 50%; transition: opacity var(--ui-t) var(--ui-ease-std), transform var(--ui-t) var(--ui-ease-out); }
+.ui-panel .sz.sel .cc { opacity: 1; transform: none; }
+
+/* ---------- settings page ---------- */
+.ui-panel section[data-page="settings"] { display: flex; flex-direction: column; }
+.ui-panel section[data-page="settings"] .sh { margin-bottom: 12px; }
+/* settings page height = 18 + 12 + (3 × 26 + 2 × 2) + 10 + 18 + 12 + (26 + 2 + 26 + 2 + 4 + 28) = 240, the button area's bottom edge sits exactly on the content area's lower edge */
+/* the settings page section heads have no counter tag: the underline should not be a bright white full-width bar (it would be the brightest thing on the page), so it is a stepped line: a 40 px 2 px gray segment on the left joined to a faint 1 px line, the same language as the header divider */
+.ui-panel section[data-page="settings"] .sh::after {
+  background:
+    linear-gradient(var(--ui-fg-3), var(--ui-fg-3)) 0 100% / 40px 2px no-repeat,
+    linear-gradient(var(--ui-line), var(--ui-line)) 0 100% / 100% 1px no-repeat;
+}
+.ui-panel .grp { display: grid; gap: 2px; }
+.ui-panel .grp + .sh { margin-top: 8px; }
+.ui-panel .opt {
+  position: relative;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px 0 12px;
+  background: rgba(255, 255, 255, .07);     /* same row face as the skin rows (.1), one step shorter and one step dimmer */
+  transition: background-color var(--ui-t-fast) var(--ui-ease-std);
+}
+.ui-panel .opt::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--ui-rampart); opacity: 0; transition: opacity var(--ui-t-fast) var(--ui-ease-std); }
+.ui-panel .opt:hover { background: rgba(255, 255, 255, .1); }
+.ui-panel .opt:hover::before { opacity: 1; }
+.ui-panel .opt .lab { font-weight: var(--ui-w-label); letter-spacing: .3px; color: var(--ui-fg); transition: color var(--ui-t-fast); }
+.ui-panel .opt .lab.cjk { letter-spacing: 1px; }
+.ui-panel .opt:hover .lab { color: var(--ui-fg-hi); }
+.ui-panel .opt .st { margin-left: auto; min-width: 28px; text-align: right; font-weight: var(--ui-w-title); letter-spacing: 1.2px; color: var(--ui-fg-4); transition: color var(--ui-t-fast); }
+.ui-panel .opt .st.cjk { letter-spacing: 0; }
+.ui-panel .opt.on .st { color: var(--ui-fg-2); }   /* on / off told apart by gray level only; orange stays on the switch itself (one state is not encoded twice) */
+/* small square switch: off = dark gray track + gray knob on the left; on = Rampart orange track + dark knob on the right */
+.ui-panel .sw { position: relative; flex: none; width: 26px; height: 14px; margin-left: 10px; background: var(--ui-toggle-off); transition: background-color var(--ui-t) var(--ui-ease-std); }
+.ui-panel .sw > i { position: absolute; left: 2px; top: 2px; width: 10px; height: 10px; background: var(--ui-fg-3); transition: transform var(--ui-t) var(--ui-ease-out), background-color var(--ui-t) var(--ui-ease-std); }
+.ui-panel .opt.on .sw { background: var(--ui-rampart); }
+.ui-panel .opt.on .sw > i { background: var(--ui-ink); transform: translateX(12px); }
+.ui-panel .opt .lock { display: none; margin-left: auto; }
+.ui-panel .opt.locked, .ui-panel .opt.locked:hover { cursor: default; background: rgba(255, 255, 255, .035); }
+.ui-panel .opt.locked .lab { color: var(--ui-fg-3); }
+.ui-panel .opt.locked .lock { display: block; }
+.ui-panel .opt.locked .st { min-width: 0; margin-left: 6px; }   /* the lock sits right next to the state text (the Chinese "off" is a single character wide, so no min-width gap) */
+.ui-panel .opt.locked .sw { opacity: .45; }
+.ui-panel .opt.locked:hover::before { opacity: 0; }
+.ui-panel .opt.locked:hover .lab { color: var(--ui-fg-3); }
+/* language: two-cell segmented button (same square language as the switch), current language = light backing, dark text */
+.ui-panel .seg { margin-left: auto; display: flex; gap: 2px; }
+.ui-panel .seg button { min-width: 40px; height: 18px; padding: 0 9px; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, .07); color: var(--ui-fg-2); transition: background-color var(--ui-t-fast), color var(--ui-t-fast); }
+.ui-panel .seg button .ui-tx { font-weight: var(--ui-w-strong); letter-spacing: 1.2px; margin-right: -1.2px; }
+.ui-panel .seg button .ui-tx.cjk { letter-spacing: 1px; margin-right: -1px; }
+.ui-panel .seg button:hover { color: var(--ui-fg-hi); background: rgba(255, 255, 255, .12); }
+.ui-panel .seg button.on { background: var(--ui-plate); color: var(--ui-ink); cursor: default; }
+/* hide pet / quit: a row of two buttons (chamfered plates), quit is danger red, one click turns it into a red "confirm quit" */
+.ui-panel .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+.ui-panel .act.hide { color: var(--ui-fg); --plate-fill: rgba(255, 255, 255, .045); --plate-stroke: rgba(255, 255, 255, .26); }
+.ui-panel .act.hide:hover { color: var(--ui-fg-hi); --plate-fill: rgba(255, 255, 255, .08); --plate-stroke: rgba(255, 255, 255, .5); }
+.ui-panel .act.quit { color: var(--ui-red); --plate-fill: rgba(255, 59, 67, .07); --plate-stroke: rgba(255, 59, 67, .55); }
+.ui-panel .act.quit:hover { --plate-fill: rgba(255, 59, 67, .14); --plate-stroke: var(--ui-red); }
+.ui-panel .act.quit.arm { color: var(--ui-fg-hi); --plate-fill: var(--ui-red); --plate-stroke: var(--ui-red); }
+/* unavailable in dev mode (no tray / not the desktop build): same treatment as the locked launch-at-startup option, dimmed, no hover response */
+.ui-panel .act.locked, .ui-panel .act.locked:hover { cursor: default; opacity: .4; }
+.ui-panel .act.hide.locked:hover { color: var(--ui-fg); --plate-fill: rgba(255, 255, 255, .045); --plate-stroke: rgba(255, 255, 255, .26); }
+.ui-panel .act.quit.locked:hover { --plate-fill: rgba(255, 59, 67, .07); --plate-stroke: rgba(255, 59, 67, .55); }
+
+/* ---------- footer: context hint + version ---------- */
+.ui-panel .ft { height: 36px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 2px var(--pad) 0; }
+.ui-panel .ft .hint { min-width: 0; font-size: 10.18px; font-weight: var(--ui-w-label); letter-spacing: .6px; color: var(--ui-fg-3); transition: color var(--ui-t-fast); }
+.ui-panel .ft .hint.cjk { font-size: 10.42px; letter-spacing: .6px; }
+.ui-panel .ft .hint.ctx { color: var(--ui-fg-2); }
+.ui-panel .ft .ver { flex: none; font-size: 10.18px; font-weight: var(--ui-w-label); letter-spacing: .8px; color: var(--ui-fg-4); }
