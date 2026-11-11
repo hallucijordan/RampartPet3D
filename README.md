@@ -2,8 +2,6 @@
 
 A real-time 3D desktop pet for Windows. Rampart sits on your taskbar and reacts to what you do: she nods along as you type, spins up Sheila when you type fast, follows your cursor with her eyes, reacts to music and to the app in front, and dozes off with a bubble-gum bubble when you leave.
 
-**Demo video:** VIDEO_URL
-
 > **Fan project.** Not affiliated with, endorsed by, or sponsored by Electronic Arts Inc. or Respawn Entertainment. Apex Legends, Rampart and all related names, characters and assets belong to their owners. This repository contains **no game files**: no models, animations, textures, sounds, UI art or fonts. To run the pet you extract the assets yourself from your own copy of the game, for personal, non-commercial use.
 
 ## Features
